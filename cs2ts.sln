@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cs2ts", "cs2ts\cs2ts.csproj", "{9970542A-64FD-4B30-8A93-D1ECAE579216}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "libcstrans", "libcstrans\libcstrans.csproj", "{7978338D-13A6-4F74-96DB-93DA902EF0FB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9970542A-64FD-4B30-8A93-D1ECAE579216}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9970542A-64FD-4B30-8A93-D1ECAE579216}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9970542A-64FD-4B30-8A93-D1ECAE579216}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9970542A-64FD-4B30-8A93-D1ECAE579216}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7978338D-13A6-4F74-96DB-93DA902EF0FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7978338D-13A6-4F74-96DB-93DA902EF0FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7978338D-13A6-4F74-96DB-93DA902EF0FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7978338D-13A6-4F74-96DB-93DA902EF0FB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
