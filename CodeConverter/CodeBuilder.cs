@@ -29,6 +29,26 @@ namespace CodeConverter
                 tscodeBuilder.Append(t);
             tscodeBuilder.AppendLine();
         }
+        public void AppendLine()
+        {
+            tscodeBuilder.AppendLine();
+        }
+        public void AppendTriviaClean( IEnumerable<SyntaxTrivia> trivias)
+        {
+            foreach(var t in trivias)
+            {
+                var str = t.ToFullString();
+                if(string.IsNullOrWhiteSpace(str))
+                {
+                    continue;
+                }
+                if (str == "\r\n")
+                    continue;
+                else
+                    tscodeBuilder.Append(str);
+            }
+
+        }
     }
     class CodeBuilder
     {
@@ -39,6 +59,7 @@ namespace CodeConverter
         static void BuildExpression(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
         {
             Console.WriteLine("BuildExpression<" + expression.GetType().Name + ">");
+
 
             if (expression is Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax)
             {
@@ -67,19 +88,22 @@ namespace CodeConverter
             {
                 Console.WriteLine("!!!up here is not parse type!!!");
             }
+
+
         }
         static void BuildNode(BuildContext builder, SemanticModel model, Microsoft.CodeAnalysis.SyntaxNode node, int space)
         {
+            var fullcode = model.SyntaxTree.GetText().ToString().Substring(node.FullSpan.Start, node.FullSpan.Length);
             string spacestr = "";
             for (var i = 0; i < space; i++)
                 spacestr += "    ";
             Console.WriteLine(spacestr + "<" + node.GetType().Name + ">");
-            var lt = node.GetLeadingTrivia();
-
             //前置注释
+            var lt = node.GetLeadingTrivia();
             if (lt.Count > 0)
             {
-                builder.AppendLine(lt.ToFullString());
+                builder.AppendTriviaClean(lt);
+                builder.AppendLine();
             }
             if (node is Microsoft.CodeAnalysis.CSharp.Syntax.CompilationUnitSyntax)
             {//that's a basic
@@ -158,7 +182,8 @@ namespace CodeConverter
             //后置注释
             if (tt.Count > 0)
             {
-                builder.tscodeBuilder.AppendLine(spacestr + tt.ToFullString());
+                builder.AppendTriviaClean(tt);
+                builder.AppendLine();
             }
             // Console.WriteLine(node.Span)
         }
@@ -250,7 +275,25 @@ namespace CodeConverter
             }
             builder.Append(")");
         }
+        static void AppendToken(BuildContext builder, SyntaxToken token, string spacestr)
+        {
+            //前置注释
+            var lt = token.LeadingTrivia;
+            if (lt.Count > 0)
+            {
+                builder.AppendTriviaClean(lt);
+            }
 
+
+            builder.AppendLine(spacestr, token.ValueText);
+
+            //后置注释
+            var tt = token.TrailingTrivia;
+            if (tt.Count > 0)
+            {
+                builder.AppendTriviaClean(tt);
+            }
+        }
         private static void BuildSynatx_Statement(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
         {//donothing for now.
             Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionStatementSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionStatementSyntax;
@@ -262,12 +305,12 @@ namespace CodeConverter
         private static void BuildSynatx_Block(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
         {
             Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax;
-            builder.AppendLine(spacestr, unit.OpenBraceToken.ValueText);
+            AppendToken(builder, unit.OpenBraceToken, spacestr);
             foreach (var _member in unit.Statements)
             {
                 BuildNode(builder, model, _member, space + 1);
             }
-            builder.AppendLine(spacestr, unit.CloseBraceToken.ValueText);
+            AppendToken(builder, unit.CloseBraceToken, spacestr);
         }
 
 
@@ -276,12 +319,12 @@ namespace CodeConverter
             //namespace
             Microsoft.CodeAnalysis.CSharp.Syntax.NamespaceDeclarationSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.NamespaceDeclarationSyntax;
             builder.AppendLine(spacestr, "namespace " + unit.Name);
-            builder.AppendLine(spacestr, "{");
+            AppendToken(builder, unit.OpenBraceToken, spacestr);
             foreach (var _member in unit.Members)
             {
                 BuildNode(builder, model, _member, space + 1);
             }
-            builder.AppendLine(spacestr, "}");
+            AppendToken(builder, unit.CloseBraceToken, spacestr);
         }
 
         private static void BuildNode_Class(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
@@ -297,12 +340,12 @@ namespace CodeConverter
                 modifiers += modify + " ";
             }
             builder.AppendLine(spacestr, modifiers, "class ", unit.Identifier.ValueText);
-            builder.AppendLine(spacestr, "{");
+            AppendToken(builder, unit.OpenBraceToken, spacestr);
             foreach (var _member in unit.Members)
             {
                 BuildNode(builder, model, _member, space + 1);
             }
-            builder.AppendLine(spacestr, "}");
+            AppendToken(builder, unit.CloseBraceToken, spacestr);
         }
         static string GetTypeString(ITypeSymbol type)
         {
@@ -334,7 +377,7 @@ namespace CodeConverter
                     return "<other special type>:" + type.SpecialType.ToString();
             }
             //other type
-            switch(type.TypeKind)
+            switch (type.TypeKind)
             {
                 case TypeKind.Array:
                     {

@@ -4,19 +4,20 @@ namespace testconv
 {
     class Program
     {
-        static string srccode = @"using System;//dd
+        static string srccode = 
+                     @"using System;//dd
                        using System.Collections.Generic;
                        using System.Text;
                        // help me
                        namespace HelloWorld
                        {
                            public class A
-{
-    public static void WriteLine(string a)
-   {
-Console.WriteLine(a);
-    }
-}
+                           {
+                               public static void WriteLine(string a)
+                               {
+                                    Console.WriteLine(a);
+                               }
+                           }
                            class Program
                            {
                                static void Main(params string[] args)
@@ -24,7 +25,7 @@ Console.WriteLine(a);
                                    int i=5;//123
                                    var ss = i.ToString();
                                    A.WriteLine(""Hello, World!"");
-/// hhh;
+                                   /// hhh;
                                }
                            }
                        }";
