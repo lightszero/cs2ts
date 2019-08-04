@@ -37,15 +37,8 @@ namespace CodeConverter
             BuildNode(builder, document.semanticModel, document.syntaxTree.GetRoot(), 0); ;
         }
         static void BuildExpression(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
-
         {
-            var lt = expression.GetLeadingTrivia();
-
-            //前置注释
-            if (lt.Count > 0)
-            {
-                builder.AppendLine(lt.ToFullString());
-            }
+            Console.WriteLine("BuildExpression<" + expression.GetType().Name + ">");
 
             if (expression is Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax)
             {
@@ -59,7 +52,21 @@ namespace CodeConverter
             {
                 BuildExpression_Identifier(builder, model, expression);
             }
-
+            else if (expression is Microsoft.CodeAnalysis.CSharp.Syntax.PredefinedTypeSyntax)
+            {
+                PredefinedTypeSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.PredefinedTypeSyntax;
+                var typestr = GetTypeString(model, unit);
+                builder.Append(typestr);
+            }
+            else if (expression is Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax)
+            {
+                Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax;
+                builder.Append(unit.Token.Text);
+            }
+            else
+            {
+                Console.WriteLine("!!!up here is not parse type!!!");
+            }
         }
         static void BuildNode(BuildContext builder, SemanticModel model, Microsoft.CodeAnalysis.SyntaxNode node, int space)
         {
@@ -72,9 +79,7 @@ namespace CodeConverter
             //前置注释
             if (lt.Count > 0)
             {
-
-                builder.AppendLine(spacestr, lt.ToFullString());
-
+                builder.AppendLine(lt.ToFullString());
             }
             if (node is Microsoft.CodeAnalysis.CSharp.Syntax.CompilationUnitSyntax)
             {//that's a basic
@@ -110,47 +115,38 @@ namespace CodeConverter
             {
                 BuildSynatx_Statement(builder, model, node, space, spacestr);
             }
-            else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax)
-            {
-                Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax;
-                Console.WriteLine(spacestr + unit.Token.Text);
-            }
             else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax)
             {
                 BuildSynatx_LocalDeclarationStatement(builder, model, node, space, spacestr);
             }
-            else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax)
-            {
-                Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax;
-                BuildNode(builder, model, unit.Type, space + 1);
-                foreach (var v in unit.Variables)
-                {
-                    BuildNode(builder, model, v, space + 1);
-                }
-            }
-            else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax)
-            {
-                Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax;
+            //else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax)
+            //{
+            //    Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax;
+            //    BuildNode(builder, model, unit.Type, space + 1);
+            //    foreach (var v in unit.Variables)
+            //    {
+            //        BuildNode(builder, model, v, space + 1);
+            //    }
+            //}
+            //else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax)
+            //{
+            //    Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax;
 
-                Console.WriteLine(spacestr + unit.Identifier.ValueText);
-                if (unit.ArgumentList != null)
-                    BuildNode(builder, model, unit.ArgumentList, space + 1);
-                if (unit.Initializer != null)
-                    BuildNode(builder, model, unit.Initializer, space + 1);
+            //    Console.WriteLine(spacestr + unit.Identifier.ValueText);
+            //    if (unit.ArgumentList != null)
+            //        BuildNode(builder, model, unit.ArgumentList, space + 1);
+            //    if (unit.Initializer != null)
+            //        BuildNode(builder, model, unit.Initializer, space + 1);
 
-            }
-            else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.EqualsValueClauseSyntax)
-            {
-                Microsoft.CodeAnalysis.CSharp.Syntax.EqualsValueClauseSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.EqualsValueClauseSyntax;
-                Console.WriteLine(spacestr + unit.EqualsToken.ValueText);
-                BuildNode(builder, model, unit.Value, space + 1);
-            }
+            //}
+            //else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.EqualsValueClauseSyntax)
+            //{
+            //    Microsoft.CodeAnalysis.CSharp.Syntax.EqualsValueClauseSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.EqualsValueClauseSyntax;
+            //    Console.WriteLine(spacestr + unit.EqualsToken.ValueText);
+            //    BuildNode(builder, model, unit.Value, space + 1);
+            //}
 
-            else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.PredefinedTypeSyntax)
-            {
-                Microsoft.CodeAnalysis.CSharp.Syntax.PredefinedTypeSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.PredefinedTypeSyntax;
-                Console.WriteLine(spacestr + unit.Keyword.ValueText);
-            }
+
 
 
             else
@@ -170,8 +166,31 @@ namespace CodeConverter
         private static void BuildSynatx_LocalDeclarationStatement(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
         {
             Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax;
-            BuildNode(builder, model, unit.Declaration, space + 1);
-            builder.Append(unit.SemicolonToken.ValueText, "\n");
+            builder.Append(spacestr);
+
+
+            BuildContext typec = new BuildContext();
+            BuildExpression(typec, model, unit.Declaration.Type);
+            var typestr = typec.TypeScriptCode;
+
+            for (var i = 0; i < unit.Declaration.Variables.Count; i++)
+            {
+                VariableDeclaratorSyntax v = unit.Declaration.Variables[i];
+                var id = v.Identifier.ValueText;
+                builder.Append("let ", id, ":", typestr);
+                if (v.ArgumentList != null)
+                {
+                    BuildNode(builder, model, v.ArgumentList, 0);
+                }
+                if (v.Initializer != null)
+                {
+                    EqualsValueClauseSyntax e = v.Initializer;
+                    builder.Append(e.EqualsToken.ValueText);
+                    BuildExpression(builder, model, e.Value);
+                }
+
+            }
+            builder.Append(unit.SemicolonToken.ValueText);//, "\n");
         }
 
         private static void BuildExpression_Identifier(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
@@ -237,7 +256,7 @@ namespace CodeConverter
             Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionStatementSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionStatementSyntax;
             builder.Append(spacestr);
             BuildExpression(builder, model, unit.Expression);
-            builder.Append(unit.SemicolonToken.ValueText, "\n");
+            builder.Append(unit.SemicolonToken.ValueText);//, "\n");
         }
 
         private static void BuildSynatx_Block(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
@@ -287,35 +306,48 @@ namespace CodeConverter
         }
         static string GetTypeString(ITypeSymbol type)
         {
-            var returnstr = "";
-            if (type.SpecialType == SpecialType.System_Void)
-                returnstr = "void";
-            else if (type.SpecialType == SpecialType.System_Boolean)
-                returnstr = "boolean";
-            else if (type.SpecialType == SpecialType.System_String)
-                returnstr = "string";
-            else if (type.SpecialType == SpecialType.None)
-            {//other type
-                if (type.TypeKind == TypeKind.Array)
-                {
-                    IArrayTypeSymbol at = type as IArrayTypeSymbol;
-                    var estr = GetTypeString(at.ElementType);
-                    return estr + "[]";
-                }
-                else if (type.TypeKind == TypeKind.Class)
-                {
+            switch (type.SpecialType)
+            {
+                case SpecialType.System_Void:
+                    return "void";
+                case SpecialType.System_Boolean:
+                    return "boolean";
+                case SpecialType.System_String:
+                    return "string";
+                case SpecialType.System_Int16:
+                case SpecialType.System_Int32:
+                case SpecialType.System_Int64:
+                case SpecialType.System_UInt16:
+                case SpecialType.System_UInt32:
+                case SpecialType.System_Single:
+                case SpecialType.System_Double:
+                    return "number";
+                case SpecialType.System_Char:
+                    return "string";
+                case SpecialType.System_Byte:
+                    return "number";
+                case SpecialType.System_UInt64:
+                    return "<very danger>Long";
+                case SpecialType.None:
+                    break;
+                default:
+                    return "<other special type>:" + type.SpecialType.ToString();
+            }
+            //other type
+            switch(type.TypeKind)
+            {
+                case TypeKind.Array:
+                    {
+                        IArrayTypeSymbol at = type as IArrayTypeSymbol;
+                        var estr = GetTypeString(at.ElementType);
+                        return estr + "[]";
+                    }
+                case TypeKind.Class:
                     return type.ToDisplayString();
-                }
-                else
-                {
-                    returnstr = "<other type>:" + type.ToDisplayParts();
-                }
+                default:
+                    return "<other type>:" + type.ToDisplayParts();
             }
-            else
-            {//other special type
-                returnstr = "<other special type>:" + type.SpecialType.ToString();
-            }
-            return returnstr;
+
         }
         static string GetTypeString(SemanticModel model, SyntaxNode node)
         {
