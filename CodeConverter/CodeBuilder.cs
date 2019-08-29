@@ -8,6 +8,7 @@ namespace CodeConverter
 {
     class BuildContext
     {
+
         public StringBuilder tscodeBuilder = new StringBuilder();
         public string TypeScriptCode
         {
@@ -33,12 +34,12 @@ namespace CodeConverter
         {
             tscodeBuilder.AppendLine();
         }
-        public void AppendTriviaClean( IEnumerable<SyntaxTrivia> trivias)
+        public void AppendTriviaClean(IEnumerable<SyntaxTrivia> trivias)
         {
-            foreach(var t in trivias)
+            foreach (var t in trivias)
             {
                 var str = t.ToFullString();
-                if(string.IsNullOrWhiteSpace(str))
+                if (string.IsNullOrWhiteSpace(str))
                 {
                     continue;
                 }
@@ -52,6 +53,25 @@ namespace CodeConverter
     }
     class CodeBuilder
     {
+        static void ConsoleLog(string text)
+        {
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine(text);
+        }
+        static void ConsoleWarn(string text)
+        {
+            var oldc = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(text);
+            Console.ForegroundColor = ConsoleColor.Gray;
+        }
+        static void ConsoleErr(string text)
+        {
+            var oldc = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(text);
+            Console.ForegroundColor = ConsoleColor.Gray;
+        }
         public static void Build(BuildContext builder, CodeConverter.Converter.MyDoc document)
         {
             BuildNode(builder, document.semanticModel, document.syntaxTree.GetRoot(), 0); ;
@@ -84,9 +104,32 @@ namespace CodeConverter
                 Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax;
                 builder.Append(unit.Token.Text);
             }
+            else if (expression is ObjectCreationExpressionSyntax)
+            {
+                BuildExpression_Creation(builder, model, expression);
+            }
+            else if (expression is BinaryExpressionSyntax)
+            {
+                BuildExpression_Binary(builder, model, expression);
+            }
+            else if(expression is PostfixUnaryExpressionSyntax)
+            {
+                BuildExpression_PostfixUnary(builder, model, expression);
+            }
+            else if(expression is ParenthesizedExpressionSyntax)
+            {
+                ParenthesizedExpressionSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.ParenthesizedExpressionSyntax;
+                builder.Append(unit.OpenParenToken.ValueText);
+                BuildExpression(builder, model, unit.Expression);
+                builder.Append(unit.CloseParenToken.ValueText);
+            }
+            else if(expression is AssignmentExpressionSyntax)
+            {
+                BuildExpression_Assignment(builder, model, expression);
+            }
             else
             {
-                Console.WriteLine("!!!up here is not parse type!!!");
+                ConsoleWarn("BuildExpression!!!up here is not parse type!!!");
             }
 
 
@@ -143,6 +186,19 @@ namespace CodeConverter
             {
                 BuildSynatx_LocalDeclarationStatement(builder, model, node, space, spacestr);
             }
+            else if (node is ForStatementSyntax)
+            {
+                BuildSynatx_ForStatement(builder, model, node, space, spacestr);
+            }
+            else if(node is IfStatementSyntax)
+            {
+                BuildSynatx_IfStatement(builder, model, node, space, spacestr);
+
+            }
+            else if (node is VariableDeclarationSyntax)
+            {
+                BuildSynatx_VariableDeclaration(builder, model, node, space, spacestr);
+            }
             //else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax)
             //{
             //    Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclarationSyntax;
@@ -175,7 +231,7 @@ namespace CodeConverter
 
             else
             {
-                Console.WriteLine(spacestr + "!!!up here is not parse type!!!");
+                ConsoleWarn(spacestr + "BuildNode!!!up here is not parse type!!!");
             }
             var tt = node.GetTrailingTrivia();
 
@@ -186,6 +242,32 @@ namespace CodeConverter
                 builder.AppendLine();
             }
             // Console.WriteLine(node.Span)
+        }
+        private static void BuildSynatx_VariableDeclaration(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
+        {
+
+            VariableDeclarationSyntax unit = node as VariableDeclarationSyntax;
+            //builder.Append(spacestr);
+
+
+            BuildContext typec = new BuildContext();
+            BuildExpression(typec, model, unit.Type);
+            var typestr = typec.TypeScriptCode;
+
+            builder.Append("let ");
+            for (var i = 0; i < unit.Variables.Count; i++)
+            {
+                if (i > 0) builder.Append(",");
+                VariableDeclaratorSyntax v = unit.Variables[i];
+                var id = v.Identifier.ValueText;
+                builder.Append(id, ":", typestr);
+                if (v.Initializer != null)
+                {
+                    EqualsValueClauseSyntax e = v.Initializer;
+                    builder.Append(e.EqualsToken.ValueText);
+                    BuildExpression(builder, model, e.Value);
+                }
+            }
         }
 
         private static void BuildSynatx_LocalDeclarationStatement(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
@@ -275,6 +357,47 @@ namespace CodeConverter
             }
             builder.Append(")");
         }
+
+        private static void BuildExpression_Creation(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
+        {
+            ObjectCreationExpressionSyntax unit = expression as ObjectCreationExpressionSyntax;
+            //unit.NewKeyword;
+            builder.Append(unit.NewKeyword.Text);
+            builder.Append(" ");
+            var typestr = GetTypeString(model, unit);
+            builder.Append(typestr);
+            builder.Append("(");
+            for (var i = 0; i < unit.ArgumentList.Arguments.Count; i++)
+            {
+                if (i > 0)
+                    builder.Append(",");
+                var arg = unit.ArgumentList.Arguments[i].Expression;
+                BuildExpression(builder, model, arg);
+
+            }
+            builder.Append(")");
+        }
+        private static void BuildExpression_Binary(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
+        {
+            BinaryExpressionSyntax unit = expression as BinaryExpressionSyntax;
+            BuildExpression(builder, model, unit.Left);
+            builder.Append(unit.OperatorToken.ValueText);
+            BuildExpression(builder, model, unit.Right);
+
+        }
+        private static void BuildExpression_PostfixUnary(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
+        {
+            PostfixUnaryExpressionSyntax unit = expression as PostfixUnaryExpressionSyntax;
+            BuildExpression(builder, model, unit.Operand);
+            builder.Append(unit.OperatorToken.ValueText);
+        }
+        private static void BuildExpression_Assignment(BuildContext builder, SemanticModel model, ExpressionSyntax expression)
+        {
+            AssignmentExpressionSyntax unit = expression as AssignmentExpressionSyntax;
+            BuildExpression(builder, model, unit.Left);
+            builder.Append(unit.OperatorToken.ValueText);
+            BuildExpression(builder, model, unit.Right);
+        }
         static void AppendToken(BuildContext builder, SyntaxToken token, string spacestr)
         {
             //前置注释
@@ -301,7 +424,65 @@ namespace CodeConverter
             BuildExpression(builder, model, unit.Expression);
             builder.Append(unit.SemicolonToken.ValueText);//, "\n");
         }
+        private static void BuildSynatx_ForStatement(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
+        {//donothing for now.
+            Microsoft.CodeAnalysis.CSharp.Syntax.ForStatementSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.ForStatementSyntax;
+            builder.Append(spacestr);
+            builder.Append(unit.ForKeyword.ValueText);//for
+            builder.Append(unit.OpenParenToken.ValueText);//(
 
+            if (unit.Declaration != null)
+            {
+                BuildSynatx_VariableDeclaration(builder, model, unit.Declaration, space, spacestr);
+            }
+            for (var i = 0; i < unit.Initializers.Count; i++)
+            {
+                if (i > 0 || unit.Declaration != null)
+                    builder.Append(",");
+                var init = unit.Initializers[i];
+                BuildExpression(builder, model, init);
+            }
+
+            builder.Append(unit.FirstSemicolonToken.ValueText);//,
+
+            BuildExpression(builder, model, unit.Condition);
+
+            builder.Append(unit.SecondSemicolonToken.ValueText);//,
+
+            for (var i = 0; i < unit.Incrementors.Count; i++)//i++
+            {
+                if (i > 0)
+                    builder.Append(",");
+                var expr = unit.Incrementors[i];
+                BuildExpression(builder, model, expr);
+
+            }
+            builder.Append(unit.CloseParenToken.ValueText);
+
+
+            BuildNode(builder, model, unit.Statement, space);
+        }
+        private static void BuildSynatx_IfStatement(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
+        {//donothing for now.
+            IfStatementSyntax unit = node as IfStatementSyntax;
+            builder.Append(spacestr);
+            builder.Append(unit.IfKeyword.ValueText);//if
+            builder.Append(unit.OpenParenToken.ValueText);//(
+
+
+            BuildExpression(builder, model, unit.Condition);
+
+            builder.Append(unit.CloseParenToken.ValueText);
+
+
+            BuildNode(builder, model, unit.Statement, space);
+
+            if(unit.Else!=null)
+            {
+                builder.Append(unit.Else.ElseKeyword.ValueText);
+                BuildNode(builder, model, unit.Else.Statement, space);
+            }
+        }
         private static void BuildSynatx_Block(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
         {
             Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax;
