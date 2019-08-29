@@ -7,7 +7,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeConverter", "CodeConver
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "testproj_helloha", "testproj_helloha\testproj_helloha.csproj", "{18E99AC2-F5FA-4579-9E31-2A431EFE4C1B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "testconv", "testconv\testconv.csproj", "{BE810B3C-5A3F-4F10-9D6D-3196D1DAB3F3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "testconv", "testconv\testconv.csproj", "{BE810B3C-5A3F-4F10-9D6D-3196D1DAB3F3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "file", "file", "{EE97589B-F433-4024-9890-85E7BA7594E6}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

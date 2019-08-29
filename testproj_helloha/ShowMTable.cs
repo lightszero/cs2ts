@@ -15,6 +15,8 @@ namespace helloha
                 {
                     var result = (i * j).ToString();
                     if (result.Length == 1)
+                        result += "  ";
+                    else
                         result += " ";
                     line += (i + "*" + j + "=" + result);
                 }

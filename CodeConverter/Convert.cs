@@ -11,16 +11,11 @@ namespace CodeConverter
 {
     public class Converter
     {
-        public class MyDoc
-        {
-            public string srcfile;
-            public SyntaxTree syntaxTree;
-            public SemanticModel semanticModel;
-        }
-        List<MyDoc> docs = new List<MyDoc>();
+
+        List<SourceCode> docs = new List<SourceCode>();
         public void AddBuildedDocument(string srcfilepath, SemanticModel model)
         {
-            docs.Add(new MyDoc() { srcfile = srcfilepath, syntaxTree = model.SyntaxTree, semanticModel = model });
+            docs.Add(new SourceCode() { srcfile = srcfilepath, syntaxTree = model.SyntaxTree, semanticModel = model });
         }
         public void AddSingleFile(string code, string fielname = "default.cs")
         {
@@ -37,12 +32,15 @@ namespace CodeConverter
         {
             AnalyzerManager manager = new AnalyzerManager();
             ProjectAnalyzer analyzer = manager.GetProject(projfile);
+            var projpath = System.IO.Path.GetFullPath(System.IO.Path.GetDirectoryName(projfile));
             var project = analyzer.GetWorkspace(true).CurrentSolution.Projects.First();
             foreach (var f in project.Documents)
             {
                 var result = f.GetSemanticModelAsync();
                 result.Wait();
-                this.AddBuildedDocument(f.FilePath, result.Result);
+                var fullpath = System.IO.Path.GetFullPath(f.FilePath);
+                var file = fullpath.Substring(projpath.Length + 1);
+                this.AddBuildedDocument(file, result.Result);
             }
         }
         public void AddSolution(string slnfile)
@@ -61,7 +59,7 @@ namespace CodeConverter
             {
                 BuildContext buildContext = new BuildContext();
                 CodeBuilder.Build(buildContext, f);
-                result[f.srcfile] = buildContext.TypeScriptCode;
+                result[f.srcfile.Replace(".cs", ".ts")] = buildContext.TypeScriptCode;
 
                 //Console.WriteLine("dumpfile:" + f.srcfile);
                 //DumpSynataxNode(f.semanticModel, f.syntaxTree.GetRoot(), 0);
@@ -69,10 +67,24 @@ namespace CodeConverter
         }
         public void DumpResult()
         {
-            foreach(var r in result)
+            foreach (var r in result)
             {
                 Console.WriteLine("===dumpfile:" + r.Key);
                 Console.WriteLine(r.Value);
+            }
+        }
+        public void WriteResult(string outpath)
+        {
+            if (System.IO.Directory.Exists(outpath) == false)
+                System.IO.Directory.CreateDirectory(outpath);
+            foreach (var r in result)
+            {
+                var outfile = System.IO.Path.Combine(outpath, r.Key);
+                var fullpath = System.IO.Path.GetDirectoryName(outfile);
+                if (System.IO.Directory.Exists(fullpath) == false)
+                    System.IO.Directory.CreateDirectory(fullpath);
+                System.IO.File.Delete(outfile);
+                System.IO.File.WriteAllText(outfile, r.Value, System.Text.Encoding.UTF8);
             }
         }
         static void DumpSynataxNode(SemanticModel model, Microsoft.CodeAnalysis.SyntaxNode node, int space)

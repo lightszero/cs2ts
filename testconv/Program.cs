@@ -46,7 +46,7 @@ namespace testconv
             conv2.AddProject(srcproj);
             conv2.Convert();
             conv2.DumpResult();
-
+            conv2.WriteResult("out/");
             Console.WriteLine("====Press Enter to exit.");
             Console.ReadLine();
 

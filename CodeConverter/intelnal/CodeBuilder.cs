@@ -6,51 +6,7 @@ using System.Text;
 
 namespace CodeConverter
 {
-    class BuildContext
-    {
 
-        public StringBuilder tscodeBuilder = new StringBuilder();
-        public string TypeScriptCode
-        {
-            get
-            {
-                return tscodeBuilder.ToString();
-            }
-        }
-        public void Append(params string[] text)
-        {
-            foreach (var t in text)
-                tscodeBuilder.Append(t);
-        }
-        public void AppendLine(string space, params string[] text)
-        {
-            tscodeBuilder.Append(space);
-
-            foreach (var t in text)
-                tscodeBuilder.Append(t);
-            tscodeBuilder.AppendLine();
-        }
-        public void AppendLine()
-        {
-            tscodeBuilder.AppendLine();
-        }
-        public void AppendTriviaClean(IEnumerable<SyntaxTrivia> trivias)
-        {
-            foreach (var t in trivias)
-            {
-                var str = t.ToFullString();
-                if (string.IsNullOrWhiteSpace(str))
-                {
-                    continue;
-                }
-                if (str == "\r\n")
-                    continue;
-                else
-                    tscodeBuilder.Append(str);
-            }
-
-        }
-    }
     class CodeBuilder
     {
         static void ConsoleLog(string text)
@@ -72,7 +28,7 @@ namespace CodeConverter
             Console.WriteLine(text);
             Console.ForegroundColor = ConsoleColor.Gray;
         }
-        public static void Build(BuildContext builder, CodeConverter.Converter.MyDoc document)
+        public static void Build(BuildContext builder, SourceCode document)
         {
             BuildNode(builder, document.semanticModel, document.syntaxTree.GetRoot(), 0); ;
         }
@@ -112,18 +68,18 @@ namespace CodeConverter
             {
                 BuildExpression_Binary(builder, model, expression);
             }
-            else if(expression is PostfixUnaryExpressionSyntax)
+            else if (expression is PostfixUnaryExpressionSyntax)
             {
                 BuildExpression_PostfixUnary(builder, model, expression);
             }
-            else if(expression is ParenthesizedExpressionSyntax)
+            else if (expression is ParenthesizedExpressionSyntax)
             {
                 ParenthesizedExpressionSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.ParenthesizedExpressionSyntax;
                 builder.Append(unit.OpenParenToken.ValueText);
                 BuildExpression(builder, model, unit.Expression);
                 builder.Append(unit.CloseParenToken.ValueText);
             }
-            else if(expression is AssignmentExpressionSyntax)
+            else if (expression is AssignmentExpressionSyntax)
             {
                 BuildExpression_Assignment(builder, model, expression);
             }
@@ -190,7 +146,7 @@ namespace CodeConverter
             {
                 BuildSynatx_ForStatement(builder, model, node, space, spacestr);
             }
-            else if(node is IfStatementSyntax)
+            else if (node is IfStatementSyntax)
             {
                 BuildSynatx_IfStatement(builder, model, node, space, spacestr);
 
@@ -249,11 +205,7 @@ namespace CodeConverter
             VariableDeclarationSyntax unit = node as VariableDeclarationSyntax;
             //builder.Append(spacestr);
 
-
-            BuildContext typec = new BuildContext();
-            BuildExpression(typec, model, unit.Type);
-            var typestr = typec.TypeScriptCode;
-
+            var typestr = GetTypeString(model, unit.Type);
             builder.Append("let ");
             for (var i = 0; i < unit.Variables.Count; i++)
             {
@@ -275,11 +227,7 @@ namespace CodeConverter
             Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax unit = node as Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax;
             builder.Append(spacestr);
 
-
-            BuildContext typec = new BuildContext();
-            BuildExpression(typec, model, unit.Declaration.Type);
-            var typestr = typec.TypeScriptCode;
-
+            var typestr = GetTypeString(model, unit.Declaration.Type);
             for (var i = 0; i < unit.Declaration.Variables.Count; i++)
             {
                 VariableDeclaratorSyntax v = unit.Declaration.Variables[i];
@@ -331,9 +279,22 @@ namespace CodeConverter
         {
             //a . b
             Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax;
-            BuildExpression(builder, model, unit.Expression);
+
+            var typestr = GetTypeString(model, unit.Expression);
+            var newtype = NameConverter.ConvertTypeName(typestr);
+            if (newtype == null)
+                BuildExpression(builder, model, unit.Expression);
+            else
+                builder.Append(newtype);
+
+            var namestr = unit.Name.Identifier.ValueText;
+            var newname = NameConverter.ConvertMemberName(typestr, namestr);
             //simple name
-            builder.Append(".", unit.Name.Identifier.ValueText);
+            if (newname == null)
+            {
+                newname = unit.Name.Identifier.ValueText;
+            }
+            builder.Append(".", newname);
             //BuildNode(builder, model, unit.Name, space + 1);
         }
 
@@ -343,7 +304,9 @@ namespace CodeConverter
             Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax unit = expression as Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax;
 
             //call part
-            BuildExpression(builder, model, unit.Expression);
+
+
+            BuildExpression_MemberAccess(builder, model, unit.Expression);
 
 
             builder.Append("(");
@@ -477,9 +440,9 @@ namespace CodeConverter
 
             BuildNode(builder, model, unit.Statement, space);
 
-            if(unit.Else!=null)
+            if (unit.Else != null)
             {
-                builder.Append(unit.Else.ElseKeyword.ValueText);
+                builder.Append(spacestr + unit.Else.ElseKeyword.ValueText);
                 BuildNode(builder, model, unit.Else.Statement, space);
             }
         }
@@ -577,6 +540,13 @@ namespace CodeConverter
         {
             TypeInfo type = model.GetTypeInfo(node);
             return GetTypeString(type.Type);
+        }
+        static string GetTypeStringByExpression(SemanticModel model, ExpressionSyntax expression)
+        {
+            BuildContext typec = new BuildContext();
+            BuildExpression(typec, model, expression);
+            var typestr = typec.TypeScriptCode;
+            return typestr;
         }
         private static void BuildNode_Method(BuildContext builder, SemanticModel model, SyntaxNode node, int space, string spacestr)
         {
